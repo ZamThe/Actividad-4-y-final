@@ -1,0 +1,39 @@
+-- 1. Análisis de Distribución de Datos (Detectar valores atípicos)
+SELECT 
+    MIN(precio_venta) AS Min_Precio, 
+    MAX(precio_venta) AS Max_Precio, 
+    AVG(precio_venta) AS Promedio_Precio, 
+    STDDEV(precio_venta) AS Desviacion_Estandar 
+FROM staging.stg_producto;
+
+-- 2. Evaluación de Completitud de Datos (Valores nulos por columna)
+SELECT 
+    COUNT(*) AS Total_Registros,
+    SUM(CASE WHEN nombre_cliente IS NULL THEN 1 ELSE 0 END) AS Nombre_Faltante,
+    SUM(CASE WHEN telefono IS NULL THEN 1 ELSE 0 END) AS Telefono_Faltante,
+    SUM(CASE WHEN email IS NULL THEN 1 ELSE 0 END) AS Email_Faltante
+FROM staging.stg_cliente;
+
+-- 3. Validación de Relación entre Atributos (Compras vs límite de crédito)
+SELECT c.ID_cliente, c.limite_credito, SUM(p.monto_total) AS Total_Compras
+FROM staging.stg_cliente c
+LEFT JOIN staging.stg_pedido p ON c.ID_cliente = p.ID_cliente
+GROUP BY c.ID_cliente
+HAVING Total_Compras > c.limite_credito;
+
+-- 4. Validación de Secuencia Lógica de Fechas (Fechas inconsistentes en pedidos)
+SELECT ID_pedido, fecha_pedido, fecha_entrega
+FROM staging.stg_pedido
+WHERE fecha_entrega < fecha_pedido;
+
+-- 5. Prueba de Consistencia de Unidades (Unidades de medida en productos por categoría)
+SELECT ID_categoria, unidad_medida, COUNT(DISTINCT unidad_medida) AS Variaciones
+FROM staging.stg_producto
+GROUP BY ID_categoria
+HAVING COUNT(DISTINCT unidad_medida) > 1;
+
+-- 6. Detección de Relaciones Huérfanas (Productos sin categoría válida)
+SELECT p.ID_producto, p.ID_categoria
+FROM staging.stg_producto p
+LEFT JOIN staging.stg_categoria_producto c ON p.ID_categoria = c.ID_categoria
+WHERE c.ID_categoria IS NULL;
